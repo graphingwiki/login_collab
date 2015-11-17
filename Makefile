@@ -4,6 +4,9 @@ CFLAGS=-g -O2 -pipe -Wall -Werror-implicit-function-declaration
 
 all: login_collab
 
+install: all
+	install -o root -g auth -m u=rxs,go=rx login_collab /usr/libexec/auth/login_-collab
+
 clean:
 	rm -f *.o login_collab
 
