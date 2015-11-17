@@ -27,15 +27,39 @@
  */
 
 #include "common.h"
+#include <sha2.h>
 
 int
-pwd_login(char *username, char *password, char *wheel, int lastchance,
-    char *class)
+check_sha512_pass(const char *password, const char *salt,
+		  const char *goodhash)
 {
-	struct passwd *pwd;
-	size_t plen;
+	char newhash[SHA512_DIGEST_STRING_LENGTH];
+	char salted[_PW_BUF_LEN];
+
+	salted[0] = '\0';
+	strlcpy(salted, salt, _PW_BUF_LEN);
+	strlcat(salted, password, _PW_BUF_LEN);
+
+	SHA512Data(salted, strlen(salted), newhash);
+
+	if (strncmp(goodhash, newhash,
+		    SHA512_DIGEST_STRING_LENGTH) == 0)
+	    return 0;
+
+	return -1;
+}
+
+int
+pwd_login(char *htpasswd, char *username, char *password, char *wheel)
+{
 	char *goodhash = NULL;
+	char *salt = NULL;
 	int passok = 0;
+	FILE *fp;
+
+	char *line = NULL;
+	size_t linesize = 0;
+	ssize_t linelen;
 
 	if (wheel != NULL && strcmp(wheel, "yes") != 0) {
 		fprintf(back, BI_VALUE " errormsg %s\n",
@@ -46,22 +70,36 @@ pwd_login(char *username, char *password, char *wheel, int lastchance,
 	if (password == NULL)
 		return (AUTH_FAILED);
 
-	pwd = getpwnam(username);
-	if (pwd)
-		goodhash = pwd->pw_passwd;
+	if ((fp = fopen(htpasswd, "r")) == NULL)
+		err(1, "%s", htpasswd);
 
-	setpriority(PRIO_PROCESS, 0, -4);
-	if (crypt_checkpass(password, goodhash) == 0)
-		passok = 1;
-	plen = strlen(password);
-	memset(password, 0, plen);
+	while ((linelen = getline(&line, &linesize, fp)) != -1) {
+		if (strncmp(line, username, strlen(username)) != 0)
+			continue;
 
-	if (!passok)
+		line[linelen-1] = '\0';
+		line += strlen(username);
+		if ((line[0] != ':') || (line[1] != '$') ||
+		    (line[2] != '6') || (line[3] != '$'))
+			continue;
+		line += 4;
+		salt = strsep(&line, "$");
+		goodhash = line;
+		break;
+	}
+
+	fclose(fp);
+
+	if (!salt || !goodhash)
 		return (AUTH_FAILED);
 
-	if (login_check_expire(back, pwd, class, lastchance) == 0)
-		fprintf(back, BI_AUTH "\n");
-	else
+	setpriority(PRIO_PROCESS, 0, -4);
+	if (check_sha512_pass(password, salt, goodhash) == 0)
+		passok = 1;
+
+	/* FIXME: zero password data here */
+
+	if (!passok)
 		return (AUTH_FAILED);
 
 	return (AUTH_OK);

@@ -48,6 +48,8 @@ main(int argc, char **argv)
 	char invokinguser[LOGIN_NAME_MAX];
 	char *wheel = NULL, *class = NULL;
 
+	char htpasswd[] = "/etc/htpasswd";
+
 	invokinguser[0] = '\0';
 
 	setpriority(PRIO_PROCESS, 0, 0);
@@ -148,9 +150,9 @@ main(int argc, char **argv)
 	}
 
 	ret = AUTH_FAILED;
-	
+
 	if (ret != AUTH_OK)
-		ret = pwd_login(username, password, wheel, lastchance, class);
+		ret = pwd_login(htpasswd, username, password, wheel);
 
 	if (password != NULL)
 		memset(password, 0, strlen(password));
