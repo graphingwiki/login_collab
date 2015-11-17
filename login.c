@@ -113,10 +113,9 @@ main(int argc, char **argv)
 	 */
 	switch (mode) {
 	case MODE_RESPONSE: {
-		int count;
+		size_t count = 0;
 		mode = 0;
-		count = -1;
-		while (++count < sizeof(response) &&
+		while (count++ < sizeof(response) &&
 		    read(3, &response[count], (size_t)1) == (ssize_t)1) {
 			if (response[count] == '\0' && ++mode == 2)
 				break;

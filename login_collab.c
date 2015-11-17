@@ -40,7 +40,7 @@ check_sha512_pass(const char *password, const char *salt,
 	strlcpy(salted, salt, _PW_BUF_LEN);
 	strlcat(salted, password, _PW_BUF_LEN);
 
-	SHA512Data(salted, strlen(salted), newhash);
+	SHA512Data((u_int8_t *)salted, strnlen(salted, _PW_BUF_LEN), newhash);
 
 	if (strncmp(goodhash, newhash,
 		    SHA512_DIGEST_STRING_LENGTH) == 0)
