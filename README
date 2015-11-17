@@ -1,0 +1,15 @@
+
+OpenBSD auth against htaccess file
+
+Installation:
+
+$ make
+# make install
+
+then modify /etc/login.conf like so:
+
+# diff /etc/login.conf{.*,}
+27c27
+< auth-defaults:auth=passwd,skey:
+---
+> auth-defaults:auth=-collab,passwd,skey:
