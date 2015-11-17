@@ -1,6 +1,6 @@
 
 CC=cc
-CFLAGS=-g -O2 -pipe -Wall -DPASSWD -Werror-implicit-function-declaration
+CFLAGS=-g -O2 -pipe -Wall -Werror-implicit-function-declaration
 
 all: login_collab
 
