@@ -44,7 +44,6 @@ main(int argc, char **argv)
 	int opt, mode = 0, ret, lastchance = 0;
 	char *username, *password = NULL;
 	char response[1024];
-	int arg_login = 0, arg_notickets = 0;
 	char invokinguser[LOGIN_NAME_MAX];
 	char *wheel = NULL, *class = NULL;
 
@@ -78,10 +77,6 @@ main(int argc, char **argv)
 				wheel = optarg + 6;
 			else if (strncmp(optarg, "lastchance=", 11) == 0)
 				lastchance = (strcmp(optarg + 11, "yes") == 0);
-			else if (strcmp(optarg, "login=yes") == 0)
-				arg_login = 1;
-			else if (strcmp(optarg, "notickets=yes") == 0)
-				arg_notickets = 1;
 			else if (strncmp(optarg, "invokinguser=", 13) == 0)
 				snprintf(invokinguser, sizeof(invokinguser),
 				    "%s", &optarg[13]);
@@ -152,7 +147,8 @@ main(int argc, char **argv)
 	ret = AUTH_FAILED;
 
 	if (ret != AUTH_OK)
-		ret = pwd_login(htpasswd, username, password, wheel);
+		ret = pwd_login(htpasswd, username, password, wheel,
+				lastchance, class);
 
 	if (password != NULL)
 		memset(password, 0, strlen(password));

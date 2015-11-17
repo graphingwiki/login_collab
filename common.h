@@ -54,6 +54,6 @@
 
 extern FILE *back;
 
-int pwd_login(char *, char *, char *, char *);
+int pwd_login(char *, char *, char *, char *, int, char *);
 
 #endif /* !_COMMON_H_ */

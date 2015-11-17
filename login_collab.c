@@ -50,8 +50,10 @@ check_sha512_pass(const char *password, const char *salt,
 }
 
 int
-pwd_login(char *htpasswd, char *username, char *password, char *wheel)
+pwd_login(char *htpasswd, char *username, char *password, char *wheel,
+	  int lastchance, char *class)
 {
+	struct passwd *pwd;
 	char *goodhash = NULL;
 	char *salt = NULL;
 	int passok = 0;
@@ -100,6 +102,12 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel)
 	/* FIXME: zero password data here */
 
 	if (!passok)
+		return (AUTH_FAILED);
+
+	pwd = getpwnam(username);
+	if (login_check_expire(back, pwd, class, lastchance) == 0)
+		fprintf(back, BI_AUTH "\n");
+	else
 		return (AUTH_FAILED);
 
 	return (AUTH_OK);
