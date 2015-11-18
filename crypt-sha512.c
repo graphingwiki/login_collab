@@ -269,15 +269,15 @@ crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 	 * the SHA512 implementation as well. */
 	SHA512Init(&ctx);
 	SHA512Final(alt_result, &ctx);
-	memset(temp_result, '\0', sizeof(temp_result));
-	memset(p_bytes, '\0', key_len);
-	memset(s_bytes, '\0', salt_len);
-	memset(&ctx, '\0', sizeof(ctx));
-	memset(&alt_ctx, '\0', sizeof(alt_ctx));
+	explicit_bzero(temp_result, sizeof(temp_result));
+	explicit_bzero(p_bytes, key_len);
+	explicit_bzero(s_bytes, salt_len);
+	explicit_bzero(&ctx, sizeof(ctx));
+	explicit_bzero(&alt_ctx, sizeof(alt_ctx));
 	if (copied_key != NULL)
-		memset(copied_key, '\0', key_len);
+		explicit_bzero(copied_key, key_len);
 	if (copied_salt != NULL)
-		memset(copied_salt, '\0', salt_len);
+		explicit_bzero(copied_salt, salt_len);
 
 	return buffer;
 }

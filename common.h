@@ -65,7 +65,7 @@ static const char sha512_rounds_prefix[] = "rounds=";
 /* Maximum hash string length. */
 #define HASH_LEN_MAX 128
 /* Maximum salt string length. */
-#define SALT_LEN_MAX 32
+#define SALT_LEN_MAX 16
 /* Default number of rounds if not explicitly specified. */
 #define ROUNDS_DEFAULT 5000
 /* Minimum number of rounds. */
