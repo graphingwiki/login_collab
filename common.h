@@ -44,6 +44,7 @@
 #include <util.h>
 #include <limits.h>
 
+#include <sha2.h>
 
 #define MODE_LOGIN 0
 #define MODE_CHALLENGE 1
@@ -54,6 +55,26 @@
 
 extern FILE *back;
 
+
+/* Define our magic string to mark salt for SHA512 "encryption" replacement. */
+static const char sha512_salt_prefix[] = "$6$";
+
+/* Prefix for optional rounds specification. */
+static const char sha512_rounds_prefix[] = "rounds=";
+
+/* Maximum hash string length. */
+#define HASH_LEN_MAX 128
+/* Maximum salt string length. */
+#define SALT_LEN_MAX 32
+/* Default number of rounds if not explicitly specified. */
+#define ROUNDS_DEFAULT 5000
+/* Minimum number of rounds. */
+#define ROUNDS_MIN 1000
+/* Maximum number of rounds. */
+#define ROUNDS_MAX 999999999
+
+
 int pwd_login(char *, char *, char *, char *, int, char *);
+char *crypt_sha512(const char *, const char *);
 
 #endif /* !_COMMON_H_ */

@@ -27,41 +27,24 @@
  */
 
 #include "common.h"
-#include <sha2.h>
-
-int
-check_sha512_pass(const char *password, const char *salt,
-		  const char *goodhash)
-{
-	char newhash[SHA512_DIGEST_STRING_LENGTH];
-	char salted[_PW_BUF_LEN];
-
-	salted[0] = '\0';
-	strlcpy(salted, salt, _PW_BUF_LEN);
-	strlcat(salted, password, _PW_BUF_LEN);
-
-	SHA512Data((u_int8_t *)salted, strnlen(salted, _PW_BUF_LEN), newhash);
-
-	if (strncmp(goodhash, newhash,
-		    SHA512_DIGEST_STRING_LENGTH) == 0)
-	    return 0;
-
-	return -1;
-}
 
 int
 pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 	  int lastchance, char *class)
 {
 	struct passwd *pwd;
-	char *goodhash = NULL;
-	char *salt = NULL;
+	char goodhash[HASH_LEN_MAX];
+	char salt[SALT_LEN_MAX];
+	char *hash = NULL;
+	FILE *fp = NULL;
 	int passok = 0;
-	FILE *fp;
+	int userfound = 0;
 
-	char *line = NULL;
+	char *line = NULL, *origline = NULL;
 	size_t linesize = 0;
-	ssize_t linelen;
+	ssize_t linelen = 0;
+
+	goodhash[0] = salt[0] = '\0';
 
 	if (wheel != NULL && strcmp(wheel, "yes") != 0) {
 		fprintf(back, BI_VALUE " errormsg %s\n",
@@ -72,43 +55,79 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 	if (password == NULL)
 		return (AUTH_FAILED);
 
+	/* Check if username is valid and not expired */
+	pwd = getpwnam(username);
+	if (!pwd)
+		return (AUTH_FAILED);
+	if (login_check_expire(back, pwd, class, lastchance) != 0)
+		return (AUTH_FAILED);
+
 	if ((fp = fopen(htpasswd, "r")) == NULL)
 		err(1, "%s", htpasswd);
 
 	while ((linelen = getline(&line, &linesize, fp)) != -1) {
+		/* minimum valid length:
+		 *     1 byte username
+		 *     1 byte ':'
+		 *     2 byte empty salt ("$$")
+		 *    86 bytes hash
+		 *   ----------------------------
+		 * =  90 bytes
+		 */
+		if (linelen < 90)
+			continue;
+		line[linelen-1] = '\0';
+
 		if (strncmp(line, username, strlen(username)) != 0)
 			continue;
 
-		line[linelen-1] = '\0';
+		if (userfound != 0) {
+			userfound++;
+			break; /* User found second time. FAIL */
+		}
+
+		userfound = 1;
+		origline = line;
+
 		line += strlen(username);
 		if ((line[0] != ':') || (line[1] != '$') ||
 		    (line[2] != '6') || (line[3] != '$'))
 			continue;
-		line += 4;
-		salt = strsep(&line, "$");
-		goodhash = line;
+
+		line += 1;
+		strlcpy(goodhash, line, HASH_LEN_MAX);
+
+		line += 3;
+		strlcpy(salt, sha512_salt_prefix, SALT_LEN_MAX);
+		strlcat(salt, strsep(&line, "$"), SALT_LEN_MAX);
+
+		/* Cleanup and bail from loop */
+		fclose(fp);
+		explicit_bzero(origline, linesize);
+		free(origline);
 		break;
 	}
 
-	fclose(fp);
 
-	if (!salt || !goodhash)
+	if (userfound > 1)
 		return (AUTH_FAILED);
 
 	setpriority(PRIO_PROCESS, 0, -4);
-	if (check_sha512_pass(password, salt, goodhash) == 0)
+
+	hash = crypt_sha512(password, salt);
+	if (!hash)
+		return (AUTH_FAILED);
+
+	if (strcmp(goodhash, hash) == 0)
 		passok = 1;
 
-	/* FIXME: zero password data here */
+	explicit_bzero(goodhash, HASH_LEN_MAX);
+	explicit_bzero(salt, SALT_LEN_MAX);
+	explicit_bzero(password, strlen(password));
 
 	if (!passok)
 		return (AUTH_FAILED);
 
-	pwd = getpwnam(username);
-	if (login_check_expire(back, pwd, class, lastchance) == 0)
-		fprintf(back, BI_AUTH "\n");
-	else
-		return (AUTH_FAILED);
-
+	fprintf(back, BI_AUTH "\n");
 	return (AUTH_OK);
 }

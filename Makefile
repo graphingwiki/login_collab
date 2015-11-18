@@ -16,5 +16,8 @@ login.o: login.c
 login_collab.o: login_collab.c
 	$(CC) $(CFLAGS) -c login_collab.c
 
-login_collab: login.o login_collab.o
-	$(CC) -lutil -o login_collab login.o login_collab.o
+crypt-sha512.o: crypt-sha512.c
+	$(CC) $(CFLAGS) -c crypt-sha512.c
+
+login_collab: login.o login_collab.o crypt-sha512.o
+	$(CC) -lutil -o login_collab login.o login_collab.o crypt-sha512.o

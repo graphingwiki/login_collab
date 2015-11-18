@@ -35,28 +35,13 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <sha2.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* Define our magic string to mark salt for SHA512 "encryption" replacement. */
-static const char sha512_salt_prefix[] = "$6$";
-
-/* Prefix for optional rounds specification. */
-static const char sha512_rounds_prefix[] = "rounds=";
-
-/* Maximum salt string length. */
-#define SALT_LEN_MAX 16
-/* Default number of rounds if not explicitly specified. */
-#define ROUNDS_DEFAULT 5000
-/* Minimum number of rounds. */
-#define ROUNDS_MIN 1000
-/* Maximum number of rounds. */
-#define ROUNDS_MAX 999999999
-
+#include "common.h"
 
 static char itoa64[] =/* 0 ... 63 => ascii - 64 */
   "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
