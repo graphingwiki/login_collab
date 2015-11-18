@@ -69,12 +69,12 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 		/* minimum valid length:
 		 *     1 byte username
 		 *     1 byte ':'
-		 *     2 byte empty salt ("$$")
+		 *     5 byte salt ("$6$n$")
 		 *    86 bytes hash
 		 *   ----------------------------
-		 * =  90 bytes
+		 * =  93 bytes
 		 */
-		if (linelen < 90)
+		if (linelen < 93)
 			continue;
 		line[linelen-1] = '\0';
 
