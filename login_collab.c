@@ -32,17 +32,24 @@ int
 pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 	  int lastchance, char *class)
 {
-	struct passwd *pwd;
 	char goodhash[HASH_LEN_MAX];
-	char salt[SALT_LEN_MAX];
+	char *salt;
+	ssize_t salt_len = 0;
 	char *hash = NULL;
 	FILE *fp = NULL;
 	int passok = 0;
 	int userfound = 0;
 
+	struct passwd *pwd = NULL; /* for getpwname() */
+
+	/* for getline() */
 	char *line = NULL, *origline = NULL;
 	size_t linesize = 0;
 	ssize_t linelen = 0;
+
+	/* '\0' + SALT_LEN_MAX + strlen("$6$") */
+	salt_len = 1 + SALT_LEN_MAX + strlen(sha512_salt_prefix);
+	salt = alloca(salt_len);
 
 	goodhash[0] = salt[0] = '\0';
 
@@ -60,6 +67,16 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 	if (!pwd)
 		return (AUTH_FAILED);
 	if (login_check_expire(back, pwd, class, lastchance) != 0)
+		return (AUTH_FAILED);
+
+	/* usermgmt.conf(8):
+	 *   "range Specifies the UID boundaries for new users.  If
+         *   unspecified, the default is ``1000..60000``."
+	 *
+	 * This filters root and other accounts away from this login
+	 * method.
+	*/
+	if (pwd->pw_uid < 1000)
 		return (AUTH_FAILED);
 
 	/* after this point we have valid and not expired username */
@@ -105,8 +122,8 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 		strlcpy(goodhash, line, HASH_LEN_MAX);
 
 		line += 3;
-		strlcpy(salt, sha512_salt_prefix, SALT_LEN_MAX);
-		strlcat(salt, strsep(&line, "$"), SALT_LEN_MAX);
+		strlcpy(salt, sha512_salt_prefix, salt_len);
+		strlcat(salt, strsep(&line, "$"), salt_len);
 
 		break;
 	}
@@ -134,7 +151,7 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 		passok = 1;
 
 end:
-	explicit_bzero(salt, SALT_LEN_MAX);
+	explicit_bzero(salt, salt_len);
 	explicit_bzero(password, strlen(password));
 	explicit_bzero(goodhash, HASH_LEN_MAX);
 
