@@ -71,7 +71,8 @@ crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 	uint8_t alt_result[64], temp_result[64];
 	SHA2_CTX ctx, alt_ctx;
 	size_t salt_len, key_len, cnt, rounds;
-	char *cp, *copied_key, *copied_salt, *p_bytes, *s_bytes, *endp;
+	char *cp, *copied_key, *copied_salt, *endp;
+	uint8_t *p_bytes, *s_bytes;
 	const char *num;
 	bool rounds_custom;
 
@@ -107,25 +108,25 @@ crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 	SHA512Init(&ctx);
 
 	/* Add the key string. */
-	SHA512Update(&ctx, key, key_len);
+	SHA512Update(&ctx, (u_int8_t *)key, key_len);
 
 	/* The last part is the salt string. This must be at most 8
 	 * characters and it ends at the first `$' character (for
 	 * compatibility with existing implementations). */
-	SHA512Update(&ctx, salt, salt_len);
+	SHA512Update(&ctx, (u_int8_t *)salt, salt_len);
 
 	/* Compute alternate SHA512 sum with input KEY, SALT, and KEY. The
 	 * final result will be added to the first context. */
 	SHA512Init(&alt_ctx);
 
 	/* Add key. */
-	SHA512Update(&alt_ctx, key, key_len);
+	SHA512Update(&alt_ctx, (u_int8_t *)key, key_len);
 
 	/* Add salt. */
-	SHA512Update(&alt_ctx, salt, salt_len);
+	SHA512Update(&alt_ctx, (u_int8_t *)salt, salt_len);
 
 	/* Add key again. */
-	SHA512Update(&alt_ctx, key, key_len);
+	SHA512Update(&alt_ctx, (u_int8_t *)key, key_len);
 
 	/* Now get result of this (64 bytes) and add it to the other context. */
 	SHA512Final(alt_result, &alt_ctx);
@@ -141,7 +142,7 @@ crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 		if ((cnt & 1) != 0)
 			SHA512Update(&ctx, alt_result, 64);
 		else
-			SHA512Update(&ctx, key, key_len);
+			SHA512Update(&ctx, (u_int8_t *)key, key_len);
 
 	/* Create intermediate result. */
 	SHA512Final(alt_result, &ctx);
@@ -151,13 +152,14 @@ crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 
 	/* For every character in the password add the entire password. */
 	for (cnt = 0; cnt < key_len; ++cnt)
-		SHA512Update(&alt_ctx, key, key_len);
+		SHA512Update(&alt_ctx, (u_int8_t *)key, key_len);
 
 	/* Finish the digest. */
 	SHA512Final(temp_result, &alt_ctx);
 
 	/* Create byte sequence P. */
-	cp = p_bytes = alloca(key_len);
+	cp = alloca(key_len);
+	p_bytes = (uint8_t *)cp;
 	for (cnt = key_len; cnt >= 64; cnt -= 64) {
 		memcpy(cp, temp_result, 64);
 		cp += 64;
@@ -169,13 +171,14 @@ crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 
 	/* For every character in the password add the entire password. */
 	for (cnt = 0; cnt < 16 + alt_result[0]; ++cnt)
-		SHA512Update(&alt_ctx, salt, salt_len);
+		SHA512Update(&alt_ctx, (u_int8_t *)salt, salt_len);
 
 	/* Finish the digest. */
 	SHA512Final(temp_result, &alt_ctx);
 
 	/* Create byte sequence S. */
-	cp = s_bytes = alloca(salt_len);
+	cp = alloca(salt_len);
+	s_bytes = (uint8_t *)cp;
 	for (cnt = salt_len; cnt >= 64; cnt -= 64) {
 		memcpy(cp, temp_result, 64);
 		cp += 64;
