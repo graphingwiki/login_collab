@@ -62,10 +62,14 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 	if (login_check_expire(back, pwd, class, lastchance) != 0)
 		return (AUTH_FAILED);
 
+	/* after this point we have valid and not expired username */
+
 	if ((fp = fopen(htpasswd, "r")) == NULL)
 		err(1, "%s", htpasswd);
 
 	while ((linelen = getline(&line, &linesize, fp)) != -1) {
+		origline = line;
+
 		/* minimum valid length:
 		 *     1 byte username
 		 *     1 byte ':'
@@ -76,7 +80,10 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 		 */
 		if (linelen < 93)
 			continue;
-		line[linelen-1] = '\0';
+
+		/* if getline() left '\n' in place, make it NULL */
+		if (line[linelen-1] == '\n')
+			line[linelen-1] = '\0';
 
 		if (strncmp(line, username, strlen(username)) != 0)
 			continue;
@@ -86,13 +93,13 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 			break; /* User found second time. FAIL */
 		}
 
-		userfound = 1;
-		origline = line;
-
 		line += strlen(username);
 		if ((line[0] != ':') || (line[1] != '$') ||
 		    (line[2] != '6') || (line[3] != '$'))
 			continue;
+
+		/* at this point we have found correct user */
+		userfound = 1;
 
 		line += 1;
 		strlcpy(goodhash, line, HASH_LEN_MAX);
@@ -101,29 +108,38 @@ pwd_login(char *htpasswd, char *username, char *password, char *wheel,
 		strlcpy(salt, sha512_salt_prefix, SALT_LEN_MAX);
 		strlcat(salt, strsep(&line, "$"), SALT_LEN_MAX);
 
-		/* Cleanup and bail from loop */
-		fclose(fp);
-		explicit_bzero(origline, linesize);
-		free(origline);
 		break;
 	}
 
+	fclose(fp);
 
-	if (userfound > 1)
-		return (AUTH_FAILED);
+	if (origline) {
+		explicit_bzero(origline, linesize);
+		free(origline);
+	}
 
 	setpriority(PRIO_PROCESS, 0, -4);
 
 	hash = crypt_sha512(password, salt);
 	if (!hash)
-		return (AUTH_FAILED);
+		goto end;
+
+	if (userfound > 1)
+		goto end;
+
+	if (strnlen(goodhash, HASH_LEN_MAX) < 86)
+		goto end;
 
 	if (strcmp(goodhash, hash) == 0)
 		passok = 1;
 
-	explicit_bzero(goodhash, HASH_LEN_MAX);
+end:
 	explicit_bzero(salt, SALT_LEN_MAX);
 	explicit_bzero(password, strlen(password));
+	explicit_bzero(goodhash, HASH_LEN_MAX);
+
+	if (hash)
+		explicit_bzero(hash, strlen(hash));
 
 	if (!passok)
 		return (AUTH_FAILED);

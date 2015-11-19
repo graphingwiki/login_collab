@@ -41,13 +41,14 @@ FILE *back = NULL;
 int
 main(int argc, char **argv)
 {
-	int opt, mode = 0, ret, lastchance = 0;
+	int opt, mode = 0, lastchance = 0;
+	int ret = AUTH_FAILED;
 	char *username, *password = NULL;
 	char response[1024];
 	char invokinguser[LOGIN_NAME_MAX];
 	char *wheel = NULL, *class = NULL;
 
-	char htpasswd[] = "/etc/htpasswd";
+	static char htpasswd[] = "/etc/htpasswd";
 
 	invokinguser[0] = '\0';
 
@@ -143,14 +144,10 @@ main(int argc, char **argv)
 		break;
 	}
 
-	ret = AUTH_FAILED;
-
-	if (ret != AUTH_OK)
-		ret = pwd_login(htpasswd, username, password, wheel,
-				lastchance, class);
+	ret = pwd_login(htpasswd, username, password, wheel, lastchance, class);
 
 	if (password != NULL)
-		memset(password, 0, strlen(password));
+		explicit_bzero(password, strlen(password));
 	if (ret != AUTH_OK)
 		fprintf(back, BI_REJECT "\n");
 
